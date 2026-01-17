@@ -1,6 +1,6 @@
 # eco_tisb
 
-for tisb hack 2026
+
 
 ## Getting Started
 
