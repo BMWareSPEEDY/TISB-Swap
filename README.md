@@ -9,9 +9,6 @@ Connect. Swap. Save the Planet.
 <p align="center">
 A hyper-local community marketplace and lost & found hub designed for TISB students.
 <br />
-<a href="#-features"><strong>Explore Features</strong></a> ·
-<a href="#-getting-started"><strong>Get Started</strong></a> ·
-<a href="https://www.google.com/search?q=https://github.com/BMWareSPEEDY/TISB-Swap/issues"><strong>Report Bug</strong></a>
 </p>
 </div>
 
