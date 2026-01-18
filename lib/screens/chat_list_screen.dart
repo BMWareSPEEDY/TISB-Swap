@@ -1,223 +1,134 @@
 import 'package:flutter/material.dart';
 import 'package:eco_tisb/utils/colors.dart';
+import 'package:eco_tisb/services/supabase_service.dart';
 
-
-class ChatListScreen extends StatelessWidget {
+class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Sample chat data
-    final chats = [
-      {
-        'name': 'Aarav P.',
-        'item': 'IB Physics HL Textbook',
-        'lastMessage': 'Yes, I can meet at the library tomorrow!',
-        'time': '2h ago',
-        'unread': 2,
-      },
-      {
-        'name': 'Priya S.',
-        'item': 'TISB Blazer Grade 10',
-        'lastMessage': 'Is this still available?',
-        'time': '5h ago',
-        'unread': 0,
-      },
-      {
-        'name': 'Arjun K.',
-        'item': 'IB Chemistry Textbook',
-        'lastMessage': 'Thanks!',
-        'time': '1d ago',
-        'unread': 0,
-      },
-    ];
+  State<ChatListScreen> createState() => _ChatListScreenState();
+}
 
+class _ChatListScreenState extends State<ChatListScreen> {
+  final SupabaseService _supabaseService = SupabaseService();
+  // Index is 1 because "Chat" is the second item in your bottom bar
+  int _currentIndex = 1;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
         title: const Text(
-          'Chats',
+          'Messages',
           style: TextStyle(
-            fontSize: 24,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
+            fontSize: 20,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: AppColors.textPrimary),
-            onPressed: () {},
-          ),
-        ],
       ),
-      body: chats.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.chat_bubble_outline,
-                    size: 80,
-                    color: AppColors.textLight,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No chats yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _supabaseService.getConversationsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primaryGreen),
+            );
+          }
+
+          final conversations = snapshot.data ?? [];
+
+          if (conversations.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: conversations.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final conv = conversations[index];
+              final itemData = conv['items'];
+              final otherUser = conv['other_user'];
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.shadow,
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Start swapping items to begin chatting!',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textLight,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              itemCount: chats.length,
-              itemBuilder: (context, index) {
-                final chat = chats[index];
-                return GestureDetector(
-                  onTap: () {
-                    // Navigate to individual chat
-                    Navigator.pushNamed(
-                      context,
-                      '/chat',
-                      arguments: {
-                        'seller': chat['name'],
-                        'title': chat['item'],
-                      },
-                    );
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border(
-                        bottom: BorderSide(
-                          color: AppColors.divider,
-                          width: 1,
-                        ),
+                  ],
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      itemData['image_url'] ?? '',
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 50,
+                        height: 50,
+                        color: Colors.grey[100],
+                        child: const Icon(Icons.image, color: Colors.grey),
                       ),
                     ),
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        // Avatar
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: AppColors.background,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.person,
-                            size: 28,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Chat info
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    chat['name'] as String,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    chat['time'] as String,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textLight,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                chat['item'] as String,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.primaryGreen,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      chat['lastMessage'] as String,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: (chat['unread'] as int) > 0
-                                            ? AppColors.textPrimary
-                                            : AppColors.textSecondary,
-                                        fontWeight: (chat['unread'] as int) > 0
-                                            ? FontWeight.w600
-                                            : FontWeight.w400,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if ((chat['unread'] as int) > 0)
-                                    Container(
-                                      margin: const EdgeInsets.only(left: 8),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primaryGreen,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        '${chat['unread']}',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                  ),
+                  title: Text(
+                    itemData['title'] ?? 'Item',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                );
-              },
-            ),
+                  subtitle: Text(
+                    'Chatting with $otherUser',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: AppColors.textSecondary,
+                    size: 20,
+                  ),
+                  onTap: () {
+                    Navigator.pushNamed(context, '/chat', arguments: {
+                      'conversation_id': conv['id'],
+                      'seller': otherUser,
+                      'title': itemData['title'],
+                    });
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
+      // Exact same BottomNavigationBar as MarketplaceScreen
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1, // Chat tab
+        currentIndex: _currentIndex,
         onTap: (index) {
+          if (index == _currentIndex) return;
+
+          setState(() => _currentIndex = index);
           if (index == 0) {
             Navigator.pushReplacementNamed(context, '/marketplace');
+          } else if (index == 1) {
+            // Already here
           } else if (index == 2) {
             Navigator.pushReplacementNamed(context, '/profile');
           } else if (index == 3) {
@@ -247,6 +158,26 @@ class ChatListScreen extends StatelessWidget {
           BottomNavigationBarItem(
             icon: Icon(Icons.search),
             label: 'Lost & Found',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          const Text(
+            'No conversations yet',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

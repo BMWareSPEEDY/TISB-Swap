@@ -8,6 +8,7 @@ import 'package:eco_tisb/screens/chat_screen.dart';
 import 'package:eco_tisb/screens/chat_list_screen.dart';
 import 'package:eco_tisb/screens/profile_screen.dart';
 import 'package:eco_tisb/screens/lost_found_screen.dart';
+import 'package:eco_tisb/screens/report_item_screen.dart';
 
 import 'dart:io';
 import 'dart:convert';
@@ -188,6 +189,7 @@ class EcoTISBApp extends StatelessWidget {
         '/chat-list': (context) => const ChatListScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/lost-found': (context) => const LostFoundScreen(),
+        '/report-item': (context) => const ReportItemScreen(),
       },
     );
   }

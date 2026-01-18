@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:eco_tisb/utils/colors.dart';
-
 import 'package:eco_tisb/widgets/category_chip.dart';
 import 'package:eco_tisb/widgets/item_card.dart';
 import 'package:eco_tisb/models/item.dart';
@@ -16,7 +15,7 @@ class MarketplaceScreen extends StatefulWidget {
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final SupabaseService _supabaseService = SupabaseService();
-  int _currentIndex = 0;
+  int _currentIndex = 0; // Controls the active tab in BottomNavBar
   String _selectedCategory = 'All Items';
   final TextEditingController _searchController = TextEditingController();
   List<Item> _items = [];
@@ -46,20 +45,24 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   List<Item> get filteredItems {
-    // Filter by search query
-    List<Item> items = _items;
+    List<Item> results = _items;
+
     if (_searchController.text.isNotEmpty) {
-      items = items.where((item) => 
-        item.title.toLowerCase().contains(_searchController.text.toLowerCase()) || 
-        (item.description?.toLowerCase().contains(_searchController.text.toLowerCase()) ?? false)
-      ).toList();
+      final query = _searchController.text.toLowerCase();
+      results = results.where((item) {
+        final titleMatch = item.title.toLowerCase().contains(query);
+        final descriptionMatch = item.description?.toLowerCase().contains(query) ?? false;
+        return titleMatch || descriptionMatch;
+      }).toList();
     }
 
-    // Filter by category
-    if (_selectedCategory == 'All Items') {
-      return items;
+    if (_selectedCategory != 'All Items') {
+      results = results.where((item) {
+        return item.category?.toUpperCase() == _selectedCategory.toUpperCase();
+      }).toList();
     }
-    return items.where((item) => item.category == _selectedCategory).toList();
+
+    return results;
   }
 
   @override
@@ -69,42 +72,31 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
+            // --- UPDATED HEADER WITH LOGO ---
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryGreen,
-                      borderRadius: BorderRadius.circular(8),
+                    padding: const EdgeInsets.all(6),
+                    child: Image.asset(
+                      'assets/images/logo-nobg.png',
+                      height: 40, // Scaled for the header
                     ),
-                    child: const Icon(Icons.eco, size: 20),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   const Text(
-                    'TISB Market',
+                    'TISB Market', // Updated name
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const Spacer(),
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: AppColors.background,
-                    child: const Icon(
-                      Icons.person,
-                      size: 20,
-                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
-            
+
             // Search Bar
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -115,7 +107,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.shadow,
+                      color: AppColors.shadow.withValues(alpha: 0.1),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -123,36 +115,37 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.search,
-                      color: AppColors.textSecondary,
-                      size: 20,
-                    ),
+                    const Icon(Icons.search, color: AppColors.textSecondary, size: 20),
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        decoration: const InputDecoration(
+                        onChanged: (value) => setState(() {}),
+                        decoration: InputDecoration(
                           hintText: 'Search textbooks, uniforms...',
-                          hintStyle: TextStyle(
+                          hintStyle: const TextStyle(
                             color: AppColors.textLight,
                             fontSize: 14,
                           ),
                           border: InputBorder.none,
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                          )
+                              : null,
                         ),
                       ),
-                    ),
-                    const Icon(
-                      Icons.tune,
-                      color: AppColors.textSecondary,
-                      size: 20,
                     ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            
+
             // Category Filters
             SizedBox(
               height: 40,
@@ -160,115 +153,72 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  CategoryChip(
-                    label: 'All Items',
-                    isSelected: _selectedCategory == 'All Items',
-                    onTap: () => setState(() => _selectedCategory = 'All Items'),
-                  ),
+                  _buildCategoryChip('All Items'),
                   const SizedBox(width: 8),
-                  CategoryChip(
-                    label: 'Textbooks',
-                    isSelected: _selectedCategory == 'Textbooks',
-                    onTap: () => setState(() => _selectedCategory = 'Textbooks'),
-                  ),
+                  _buildCategoryChip('Book'),
                   const SizedBox(width: 8),
-                  CategoryChip(
-                    label: 'Uniforms',
-                    isSelected: _selectedCategory == 'Uniforms',
-                    onTap: () => setState(() => _selectedCategory = 'Uniforms'),
-                  ),
+                  _buildCategoryChip('Uniform'),
                   const SizedBox(width: 8),
-                  CategoryChip(
-                    label: 'Electronics',
-                    isSelected: _selectedCategory == 'Electronics',
-                    onTap: () => setState(() => _selectedCategory = 'Electronics'),
-                  ),
+                  _buildCategoryChip('Electronics'),
                 ],
               ),
             ),
             const SizedBox(height: 16),
-            
-            // Section Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Recent Listings',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text(
-                      'See all',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
+
             // Items Grid
             Expanded(
-              child: _isLoading 
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _fetchItems,
-                    child: filteredItems.isEmpty
-                      ? const Center(child: Text('No items found'))
-                      : GridView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.7,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                          ),
-                          itemCount: filteredItems.length,
-                          itemBuilder: (context, index) {
-                            final currentItem = filteredItems[index];
-                            return ItemCard(
-                              // It's better to pass the object 'currentItem' directly if you update ItemCard
-                              // but keeping .toJson() for now as per your current setup
-                              item: currentItem.toJson(),
-                              onTap: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ItemDetailsScreen(item: currentItem),
-                                  ),
-                                );
-                                // Optional: Refresh when coming back in case it was swapped
-                                _fetchItems();
-                              },
-                            );
-                          },
-                        ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
+                  : RefreshIndicator(
+                onRefresh: _fetchItems,
+                child: filteredItems.isEmpty
+                    ? ListView(
+                  children: const [
+                    SizedBox(height: 100),
+                    Center(child: Text('No items found matching your search')),
+                  ],
+                )
+                    : GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.7,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
                   ),
+                  itemCount: filteredItems.length,
+                  itemBuilder: (context, index) {
+                    final currentItem = filteredItems[index];
+                    return ItemCard(
+                      item: currentItem.toJson(),
+                      onTap: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ItemDetailsScreen(item: currentItem),
+                          ),
+                        );
+                        if (result == true) _fetchItems();
+                      },
+                    );
+                  },
+                ),
+              ),
             ),
           ],
         ),
       ),
+
+      // Floating Action Button
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.pushNamed(context, '/list-item');
-        },
+        onPressed: () => Navigator.pushNamed(context, '/list-item'),
         backgroundColor: AppColors.primaryGreen,
         foregroundColor: Colors.black,
         icon: const Icon(Icons.add),
-        label: const Text(
-          'Sell Item',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
+        label: const Text('Sell Item', style: TextStyle(fontWeight: FontWeight.w600)),
       ),
+
+      // --- RESTORED BOTTOM NAVIGATION BAR ---
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -307,6 +257,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCategoryChip(String label) {
+    return CategoryChip(
+      label: label,
+      isSelected: _selectedCategory == label,
+      onTap: () => setState(() => _selectedCategory = label),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:eco_tisb/utils/colors.dart';
-import 'package:eco_tisb/utils/constants.dart';
-import 'package:eco_tisb/widgets/custom_button.dart';
+import 'package:eco_tisb/services/supabase_service.dart';
+import 'package:intl/intl.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -11,323 +11,274 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  final SupabaseService _supabaseService = SupabaseService();
   final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
+  void _handleSend(String convId) async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+    _messageController.clear();
+    await _supabaseService.sendMessage(convId, text);
+
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(0,
+          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    }
+  }
+
+  void _confirmSwap(String itemId, String sellerEmail, String category, bool isLostFound) async {
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isLostFound ? "Confirm Return" : "Confirm Swap"),
+        content: Text(isLostFound
+            ? "Has the item been returned to its owner? You will earn Eco-Points for your help!"
+            : "Has the exchange been completed? You will earn Eco-Points and this item will be marked as swapped."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryGreen),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Confirm", style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final myEmail = _supabaseService.currentUser?.email ?? '';
+
+        if (isLostFound) {
+          await _supabaseService.completeLostFoundRecovery(
+            itemId: itemId,
+            reporterEmail: sellerEmail, // The person who reported it
+            ownerEmail: myEmail,        // You (the person claiming it)
+          );
+        } else {
+          await _supabaseService.completeTransaction(
+            itemId: itemId,
+            sellerEmail: sellerEmail,   // The seller
+            buyerEmail: myEmail,        // You (the buyer)
+            category: category,
+          );
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Action Confirmed! Eco-Points added to your profile.')),
+          );
+          Navigator.pop(context); // Go back to messages list
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e')),
+          );
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final item = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final String convId = args['conversation_id'];
+    final String title = args['title'] ?? 'Listing';
+    final String seller = args['seller'] ?? 'User';
+
+    // Extracting these for the Swap button
+    final String itemId = args['item_id'] ?? '';
+    final String category = args['category'] ?? 'OTHER';
+    final bool isLostFound = args['is_lost_found'] ?? false;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        title: Row(
           children: [
-            Text(
-              item['seller'] ?? 'Aarav P.',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+            const CircleAvatar(
+              backgroundColor: AppColors.primaryGreen,
+              child: Icon(Icons.person, color: Colors.white),
             ),
-            Text(
-              'Listing: ${item['title'] ?? 'IB Physics HL Textbook'}',
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(seller, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                  Text("Listing: $title", style: const TextStyle(fontSize: 11, color: Colors.grey), overflow: TextOverflow.ellipsis),
+                ],
               ),
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: const CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.background,
-              child: Icon(
-                Icons.person,
-                size: 18,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ],
       ),
       body: Column(
         children: [
-          // Safe Swap Info Card
+          // Safe Swap Zone Banner
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadow,
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              border: Border.all(color: Colors.grey.shade200),
             ),
             child: Column(
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.shield_outlined,
-                        color: AppColors.success,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Safe Swap Zone',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
+                    Icon(Icons.verified_user, color: Colors.green.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    const Text("Safe Swap Zone", style: TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 const Text(
-                  'For your safety, please arrange to meet in the TISB Library or Portico for exchanges.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    height: 1.4,
-                  ),
+                  "For your safety, please arrange to meet in the TISB Library or Portico for exchanges.",
+                  style: TextStyle(fontSize: 12, color: Colors.black87),
                 ),
               ],
             ),
           ),
-          
-          // Chat Messages
+
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                // Date divider
-                Center(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 16),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.background,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Today',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                
-                // Messages
-                ...AppConstants.sampleMessages.map((msg) {
-                  final isMe = msg['sender'] == 'me';
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Row(
-                      mainAxisAlignment:
-                          isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (!isMe) ...[
-                          const CircleAvatar(
-                            radius: 16,
-                            backgroundColor: AppColors.background,
-                            child: Icon(
-                              Icons.person,
-                              size: 16,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Flexible(
-                          child: Column(
-                            crossAxisAlignment: isMe
-                                ? CrossAxisAlignment.end
-                                : CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isMe
-                                      ? AppColors.primaryGreen
-                                      : Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: !isMe
-                                      ? [
-                                          BoxShadow(
-                                            color: AppColors.shadow,
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ]
-                                      : [],
-                                ),
-                                child: Text(
-                                  msg['content'] ?? '',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: isMe
-                                        ? Colors.black
-                                        : AppColors.textPrimary,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                msg['timestamp'] ?? '',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.textLight,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
+            child: StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _supabaseService.getMessageStream(convId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen));
+                }
+                final messages = snapshot.data ?? [];
+
+                return ListView.builder(
+                  controller: _scrollController,
+                  reverse: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = messages[index];
+                    final bool isMe = msg['sender_email'] == _supabaseService.currentUser?.email;
+                    final DateTime time = DateTime.parse(msg['created_at']).toLocal();
+
+                    return _buildMessageBubble(msg['content'], isMe, time);
+                  },
+                );
+              },
             ),
           ),
-          
-          // Confirm Swap Button
+
+          // Input Bar with Swap Button
+          _buildInputBar(convId, itemId, seller, category, isLostFound),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(String content, bool isMe, DateTime time) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isMe ? const Color(0xFF00FF00) : Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(isMe ? 16 : 0),
+                bottomRight: Radius.circular(isMe ? 0 : 16),
+              ),
               boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadow,
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5, offset: const Offset(0, 2))
               ],
             ),
-            child: Column(
-              children: [
-                CustomButton(
-                  text: 'Confirm Swap & Claim Eco-Points',
-                  icon: Icons.check_circle,
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        title: const Row(
-                          children: [
-                            Icon(Icons.eco, color: AppColors.success),
-                            SizedBox(width: 8),
-                            Text('Swap Confirmed!'),
-                          ],
-                        ),
-                        content: const Text(
-                          'You\'ve earned 50 Eco-Points and saved 2.5kg of CO2!',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              Navigator.pop(context);
-                            },
-                            child: const Text('Great!'),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                // Message Input
-                Container(
+            child: Text(
+              content,
+              style: TextStyle(
+                color: Colors.black,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 4, right: 4),
+            child: Text(
+              DateFormat('hh:mm a').format(time),
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputBar(String convId, String itemId, String sellerEmail, String category, bool isLostFound) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: itemId.isEmpty
+                  ? null
+                  : () => _confirmSwap(itemId, sellerEmail, category, isLostFound),
+              icon: const Icon(Icons.check_circle, size: 18),
+              label: Text(isLostFound ? "Confirm Return & Claim Points" : "Confirm Swap & Claim Eco-Points"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00FF00),
+                foregroundColor: Colors.black,
+                disabledBackgroundColor: Colors.grey.shade300,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.background,
+                    color: const Color(0xFFF3F5F7),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.add_circle_outline,
-                          color: AppColors.textSecondary,
-                        ),
-                        onPressed: () {},
-                      ),
-                      Expanded(
-                        child: TextField(
-                          controller: _messageController,
-                          decoration: const InputDecoration(
-                            hintText: 'Message...',
-                            hintStyle: TextStyle(
-                              color: AppColors.textLight,
-                              fontSize: 14,
-                            ),
-                            border: InputBorder.none,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: AppColors.textPrimary,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.arrow_upward,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                    ],
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: const InputDecoration(
+                      hintText: 'Message...',
+                      border: InputBorder.none,
+                    ),
+                    onSubmitted: (_) => _handleSend(convId),
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _handleSend(convId),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(color: Color(0xFF1A212E), shape: BoxShape.circle),
+                  child: const Icon(Icons.arrow_upward, color: Colors.white, size: 20),
+                ),
+              ),
+            ],
           ),
         ],
       ),

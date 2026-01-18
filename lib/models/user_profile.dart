@@ -1,35 +1,28 @@
 class UserProfile {
-  final String? fullName;
-  final String? email;
-  final String? avatarUrl;
+  final String fullName;
+  final String email;
   final int points;
   final double co2Saved;
+  final int itemsRecycled; // Add this
+  final double treesSaved;  // Add this
 
   UserProfile({
-    this.fullName,
-    this.email,
-    this.avatarUrl,
-    this.points = 0,
-    this.co2Saved = 0.0,
+    required this.fullName,
+    required this.email,
+    required this.points,
+    required this.co2Saved,
+    this.itemsRecycled = 0,
+    this.treesSaved = 0.0,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
-      fullName: json['full_name'] ?? 'Ayansh Paliwal',
-      email: json['email'] ?? 'payansh@tisb.ac.in',
-      avatarUrl: json['avatar_url'],
+      fullName: json['full_name'] ?? '',
+      email: json['email'] ?? '',
       points: json['points'] ?? 0,
-      co2Saved: (json['co2_saved'] ?? 0.0).toDouble(),
+      co2Saved: (json['co2_saved'] ?? 0).toDouble(),
+      itemsRecycled: json['items_recycled'] ?? 0,
+      treesSaved: (json['trees_saved'] ?? 0).toDouble(),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'full_name': fullName,
-      'email': email,
-      'avatar_url': avatarUrl,
-      'points': points,
-      'co2_saved': co2Saved,
-    };
   }
 }

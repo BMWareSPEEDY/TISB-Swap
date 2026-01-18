@@ -28,6 +28,9 @@ class LostFoundCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Safely extract the image URL from the map
+    final String? imageUrl = item['image_url'];
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -46,27 +49,37 @@ class LostFoundCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image section with category badge
             Stack(
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(12),
                   ),
-                  child: Image.asset(
-                    item['image'] ?? 'assets/images/textbook_placeholder.png',
+                  child: (imageUrl != null && imageUrl.isNotEmpty)
+                      ? Image.network(
+                    imageUrl,
                     height: 160,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
                       return Container(
                         height: 160,
                         color: AppColors.background,
-                        child: const Icon(Icons.image, size: 40, color: AppColors.textLight),
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primaryGreen,
+                          ),
+                        ),
                       );
                     },
-                  ),
+                    errorBuilder: (context, error, stackTrace) =>
+                        _buildImagePlaceholder(),
+                  )
+                      : _buildImagePlaceholder(),
                 ),
+                // Type Badge (LOST vs FOUND) - More useful than category here
                 Positioned(
                   top: 12,
                   left: 12,
@@ -76,11 +89,11 @@ class LostFoundCard extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: _getCategoryColor(item['category'] ?? ''),
+                      color: item['type'] == 'lost' ? Colors.red : Colors.green,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      item['category'] ?? '',
+                      item['type']?.toUpperCase() ?? '',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -90,25 +103,8 @@ class LostFoundCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.bookmark_border,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
               ],
             ),
-            // Content section
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -119,7 +115,7 @@ class LostFoundCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          item['title'] ?? '',
+                          item['title'] ?? 'Unnamed Item',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -127,18 +123,12 @@ class LostFoundCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Text(
-                        item['timeAgo'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textLight,
-                        ),
-                      ),
+                      // Optional: format 'created_at' if you want a time stamp
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    item['description'] ?? '',
+                    item['description'] ?? 'No description provided',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -153,19 +143,19 @@ class LostFoundCard extends StatelessWidget {
                       const Icon(
                         Icons.location_on,
                         size: 16,
-                        color: AppColors.success,
+                        color: AppColors.primaryGreen,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          item['location'] ?? '',
+                          item['location'] ?? 'Location not specified',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
                           ),
                         ),
                       ),
-                      Icon(
+                      const Icon(
                         Icons.chevron_right,
                         size: 20,
                         color: AppColors.textLight,
@@ -178,6 +168,16 @@ class LostFoundCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Container(
+      height: 160,
+      width: double.infinity,
+      color: AppColors.background,
+      child: const Icon(Icons.image_not_supported_outlined,
+          size: 40, color: AppColors.textLight),
     );
   }
 }

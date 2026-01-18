@@ -48,6 +48,10 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
               background: Image.network(
                 widget.item.imageUrl ?? 'https://via.placeholder.com/400',
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.image_not_supported, size: 50),
+                ),
               ),
             ),
           ),
@@ -74,6 +78,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
                     children: [
                       _buildBadge(widget.item.category ?? 'General', Colors.blueGrey),
                       const SizedBox(width: 8),
+                      // Check for Grade info in description
                       if (widget.item.description?.contains('Grade:') ?? false)
                         _buildBadge(
                             widget.item.description!.split('Grade:')[1].split('|')[0].trim(),
@@ -109,9 +114,9 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
+        border: Border.all(color: color.withOpacity(0.5)),
       ),
       child: Text(
         text,
@@ -121,25 +126,29 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
   }
 
   Widget _buildImpactCard() {
+    // Dynamically get impact from our service mapping
+    final impactData = _supabaseService.categoryImpact[widget.item.category?.toUpperCase()] ??
+        _supabaseService.categoryImpact['OTHER']!;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primaryGreen.withValues(alpha: 0.05),
+        color: AppColors.primaryGreen.withOpacity(0.05),
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.primaryGreen.withValues(alpha: 0.2)),
+        border: Border.all(color: AppColors.primaryGreen.withOpacity(0.2)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(Icons.eco, color: AppColors.primaryGreen, size: 30),
-          SizedBox(width: 16),
+          const Icon(Icons.eco, color: AppColors.primaryGreen, size: 30),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Eco Impact", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
+                const Text("Eco Impact", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryGreen)),
                 Text(
-                  "By reusing this item, you save approx. 2.5kg of CO2 emissions.",
-                  style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                  "By reusing this, you save approx. ${impactData['co2']}kg of CO2 and earn ${impactData['points']?.toInt()} points!",
+                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
                 ),
               ],
             ),
@@ -152,7 +161,6 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
   Widget _buildSellerInfo() {
     if (_isLoadingSeller) return const LinearProgressIndicator();
 
-    // Safe handling of initials
     final String displayName = _sellerProfile?.fullName ?? "TISB User";
     final String initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : "U";
 
@@ -166,7 +174,7 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
         children: [
           CircleAvatar(
             backgroundColor: AppColors.primaryGreen,
-            child: Text(initial, style: const TextStyle(color: Colors.white)),
+            child: Text(initial, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 12),
           Column(
@@ -177,13 +185,20 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
             ],
           ),
           const Spacer(),
-          Text(widget.item.sellerEmail, style: const TextStyle(fontSize: 10, color: AppColors.textLight)),
+          Text(
+              widget.item.sellerEmail.length > 15
+                  ? "...${widget.item.sellerEmail.substring(widget.item.sellerEmail.length - 12)}"
+                  : widget.item.sellerEmail,
+              style: const TextStyle(fontSize: 10, color: AppColors.textLight)
+          ),
         ],
       ),
     );
   }
 
   Widget _buildBottomAction() {
+    final bool isMyItem = widget.item.sellerEmail == _supabaseService.currentUser?.email;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
@@ -191,9 +206,63 @@ class _ItemDetailsScreenState extends State<ItemDetailsScreen> {
         border: Border(top: BorderSide(color: AppColors.divider)),
       ),
       child: CustomButton(
-        text: "I'm Interested",
-        onPressed: () {
-          // Add contact logic
+        text: isMyItem ? "MARK AS SWAPPED" : "I'M INTERESTED",
+        onPressed: isMyItem ? () async {
+          // Show a confirmation dialog
+          bool? confirm = await showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text("Confirm Swap"),
+              content: const Text("Has this item been handed over? You will earn Eco-Points!"),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("No")),
+                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Yes, Confirmed")),
+              ],
+            ),
+          );
+
+          if (confirm == true) {
+            try {
+              await _supabaseService.completeTransaction(
+                itemId: widget.item.id,
+                sellerEmail: widget.item.sellerEmail,
+                buyerEmail: _supabaseService.currentUser?.email ?? '', // The current user is the buyer
+                category: widget.item.category ?? 'OTHER',
+              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Item Swapped! Points Awarded.")));
+                Navigator.pop(context, true); // Pop back and trigger refresh
+              }
+            } catch (e) {
+              debugPrint("Swap Error: $e");
+            }
+          }
+        } : () async {
+          try {
+            final String convId = await _supabaseService.getOrCreateConversation(
+                widget.item.id,
+                widget.item.sellerEmail
+            );
+
+            if (context.mounted) {
+              Navigator.pushNamed(
+                  context,
+                  '/chat',
+                  arguments: {
+                    'conversation_id': convId,
+                    'seller': widget.item.sellerEmail,
+                    'title': widget.item.title,
+                    'item_id': widget.item.id, // Fixed: use widget.item.id
+                    'category': widget.item.category ?? 'OTHER', // Fixed: use widget.item.category
+                    'is_lost_found': false, // Specifically for Marketplace
+                  }
+              );
+            }
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error starting chat: $e')),
+            );
+          }
         },
       ),
     );
