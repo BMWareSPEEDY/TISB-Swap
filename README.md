@@ -56,81 +56,11 @@ Database: PostgreSQL with Row-Level Security (RLS).
 
 Storage: Secure bucket for item and profile images.
 
-🚀 Getting Started
-
-Follow these steps to set up a local development environment.
-
-Prerequisites
-
-Flutter SDK: Install Flutter
-
-Supabase Account: Create a project
-
-Installation
-
-Clone the repository
-
-git clone [https://github.com/BMWareSPEEDY/TISB-Swap.git](https://github.com/BMWareSPEEDY/TISB-Swap.git)
-cd TISB-Swap
-
-
-Install dependencies
-
-flutter pub get
-
-
-Configure Environment
-Create a .env file or update lib/utils/constants.dart with your Supabase credentials:
-
-const supabaseUrl = 'YOUR_SUPABASE_URL';
-const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
-
-
-Database Setup
-
-Run the following SQL scripts in your Supabase SQL Editor to set up the necessary tables and security policies.
-
-1. Create Tables & Functions
-
--- Enable RLS
-ALTER TABLE items ENABLE ROW LEVEL SECURITY;
-
--- Create Impact Stats Function
-CREATE OR REPLACE FUNCTION increment_user_stats(
-  p_email TEXT, p_co2 FLOAT, p_points INT, p_items INT, p_trees FLOAT
-) RETURNS VOID AS $$
-BEGIN
-  UPDATE profiles 
-  SET co2_saved = co2_saved + p_co2,
-      points = points + p_points,
-      items_recycled = items_recycled + p_items,
-      trees_saved = trees_saved + p_trees
-  WHERE email = p_email;
-END;
-$$ LANGUAGE plpgsql;
-
-
-2. Set RLS Policies (Development Mode)
-
--- Allow full access to authenticated users
-CREATE POLICY "Full access items" ON public.items FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access lost_found" ON public.lost_found FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access profiles" ON public.profiles FOR ALL TO authenticated USING (true) WITH CHECK (true);
-
-
-Running the App
-
-# Generate launcher icons (optional)
-dart run flutter_launcher_icons
-
-# Run on emulator or device
-flutter run
-
 
 👤 Authors
 
 BMWareSPEEDY - Solo Developer
 
 <div align="center">
-<sub>Built with ❤️ for United Hacks. Save the planet, one swap at a time.</sub>
+<sub>Built with ❤️. Save the planet, one swap at a time.</sub>
 </div>
