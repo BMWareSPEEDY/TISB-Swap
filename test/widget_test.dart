@@ -5,26 +5,39 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-import 'package:flutter/material.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tisb_swap/main.dart';
+import 'package:eco_tisb/main.dart';
+
+import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  const MethodChannel('plugins.flutter.io/shared_preferences')
+      .setMockMethodCallHandler((MethodCall methodCall) async {
+    if (methodCall.method == 'getAll') {
+      return <String, dynamic>{};
+    }
+    return null;
+  });
+
+  setUpAll(() async {
+    // Mock Supabase for testing
+    await Supabase.initialize(
+      url: 'https://example.supabase.co',
+      anonKey: 'example',
+    );
+  });
+
+  testWidgets('Welcome screen smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const EcoTISBApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that our welcome text is present.
+    expect(find.text('TISB Swap'), findsOneWidget);
+    expect(find.text('Login with Email'), findsOneWidget);
   });
 }
