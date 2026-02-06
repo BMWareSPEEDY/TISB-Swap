@@ -15,6 +15,8 @@ The application provides a secure platform for users to list items they no longe
 - Sustainability Tracking: Impact badges and statistics that highlight the environmental benefits of swapping items (e.g., CO2 saved, water conserved).
 - User Profiles: Personalized profiles managing user listings, active chats, and sustainability stats.
 - Secure Authentication: User verification and account management powered by Supabase.
+- Spam and Scam detection: Users can report scam. There are also auto triggering features like banning with occur after a user uploads more than 5 items to the marketplace in a month. This is only temerary as they can still do everything else. Also after 5 reports, the sender gets baned so they cant upload more items to the marketplace until further inspection.
+- Live counter: Shows the collective impact of the community on the enveronment. This is visible on the welcome screen.
 
 ## Technical Stack
 
