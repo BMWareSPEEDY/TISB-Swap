@@ -28,7 +28,7 @@ This proejct as you can tell falls under the sustaniblity theme. But it could al
 - Lost and Found: A dedicated section for reporting and finding lost items within the school campus.
 - Sustainability Tracking: Impact badges and statistics that highlight the environmental benefits of swapping items (e.g., CO2 saved, water conserved).
 - User Profiles: Personalized profiles managing user listings, active chats, and sustainability stats.
-- Secure Authentication: User verification and account management powered by Supabase. Only users with a TISB email domain(@tisb.ac.in) can enter this ecosystem. 
+- Secure Authentication: User verification and account management powered by Supabase. Only users with a TISB email domain (@tisb.ac.in) can enter this ecosystem. 
 - Spam and Scam detection: Users can report scam. There are also auto triggering features like banning with occur after a user uploads more than 5 items to the marketplace in a month. This is only temerary as they can still do everything else. Also after 5 reports, the sender gets baned so they cant upload more items to the marketplace until further inspection.
 - Live counter: Shows the collective impact of the community on the enveronment. This is visible on the welcome screen.
 - Realtime backend: I am using supabase to make sure that all the data is managed properly. It allows for most of the features mentioned above. It also allowed for proper security using RLS polices.
