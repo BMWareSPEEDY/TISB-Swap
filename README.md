@@ -1,6 +1,6 @@
 # TISB Swap
 
-TISB Swap is a community-driven marketplace application designed specifically for the students and faculty of The International School Bangalore (TISB). The project, developed for TISB Hacks 2026, aims to promote sustainability and a circular economy within the school community by facilitating the swapping and resale of pre-owned items. I don't have a runnable link as this is a mobile application that I haven't published to the internet but for the live demo, I have this app which is running on an actually phone. The link for the demo video is: https://vimeo.com/1162593743?share=copy&fl=sv&fe=ci.
+TISB Swap is a community-driven marketplace application designed specifically for the students and faculty of The International School Bangalore (TISB). The project aims to promote sustainability and a circular economy within the school community by facilitating the swapping and resale of pre-owned items. I don't have a runnable link as this is a mobile application that I haven't published to the internet but for the live demo, I have this app which is running on an actually phone. The link for the demo video is: https://vimeo.com/1162593743?share=copy&fl=sv&fe=ci.
 
 ## Overview
 
